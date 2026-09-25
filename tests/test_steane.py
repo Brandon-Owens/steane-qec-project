@@ -2,7 +2,7 @@ from itertools import product
 
 from qiskit.quantum_info import Pauli
 
-from src.steane import Stabilizers
+from src.steane import Stabilizers, syndrome
 
 
 # helper function which returns the operator S1^a_1 S2^a_2...S6^a_6 when given (a_1, ..., a_6) for a_i in {0,1}
@@ -45,3 +45,39 @@ def test_minus_identity_not_in_stabilizer():
     for exponents in product([0, 1], repeat=len(Stabilizers)):
         if exponents != (0, 0, 0, 0, 0, 0):
             assert stabilizer_product(exponents) != minus_identity
+
+# this series of errors tests four simple cases to ensure that our syndrome function works properly           
+def test_identity_has_zero_syndrome():
+    error = Pauli("IIIIIII")
+    assert syndrome(error) == (0,0,0,0,0,0)
+
+def test_x0_syndrome():
+    error = Pauli("IIIIIIX")
+    assert syndrome(error) == (0,0,0,1,1,1)
+
+def test_y0_syndrome():
+    error = Pauli("IIIIIIY")
+    assert syndrome(error) == (1,1,1,1,1,1)
+
+def test_z0_syndrome():
+    error = Pauli("IIIIIIZ")
+    assert syndrome(error) == (1,1,1,0,0,0)
+    
+   
+ 
+def test_weight_one_errors_have_distinct_nonzero_syndromes():
+    all_syndromes = []
+
+    for i in range(7):
+        x_error = Pauli("I" * (6 - i) + "X" + "I" * i)
+        y_error = Pauli("I" * (6 - i) + "Y" + "I" * i)
+        z_error = Pauli("I" * (6 - i) + "Z" + "I" * i)
+
+        all_syndromes.append(syndrome(x_error))
+        all_syndromes.append(syndrome(y_error))
+        all_syndromes.append(syndrome(z_error))
+
+    zero_syndrome = (0, 0, 0, 0, 0, 0)
+
+    assert len(set(all_syndromes)) == len(all_syndromes)
+    assert zero_syndrome not in all_syndromes
