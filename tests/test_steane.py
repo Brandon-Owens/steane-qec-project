@@ -1,8 +1,17 @@
+import pytest
 from itertools import product
 
+from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 from qiskit.quantum_info import Pauli
+from qiskit.synthesis import synth_circuit_from_stabilizers
+from qiskit_aer import AerSimulator
 
-from src.steane import Stabilizers, syndrome
+from src.steane import (
+    Stabilizers,
+    append_syndrome_measurement,
+    measure_stabilizer,
+    syndrome,
+)
 
 
 # helper function which returns the operator S1^a_1 S2^a_2...S6^a_6 when given (a_1, ..., a_6) for a_i in {0,1}
@@ -46,25 +55,28 @@ def test_minus_identity_not_in_stabilizer():
         if exponents != (0, 0, 0, 0, 0, 0):
             assert stabilizer_product(exponents) != minus_identity
 
-# this series of errors tests four simple cases to ensure that our syndrome function works properly           
+
+# this series of errors tests four simple cases to ensure that our syndrome function works properly
 def test_identity_has_zero_syndrome():
     error = Pauli("IIIIIII")
-    assert syndrome(error) == (0,0,0,0,0,0)
+    assert syndrome(error) == (0, 0, 0, 0, 0, 0)
+
 
 def test_x0_syndrome():
     error = Pauli("IIIIIIX")
-    assert syndrome(error) == (0,0,0,1,1,1)
+    assert syndrome(error) == (0, 0, 0, 1, 1, 1)
+
 
 def test_y0_syndrome():
     error = Pauli("IIIIIIY")
-    assert syndrome(error) == (1,1,1,1,1,1)
+    assert syndrome(error) == (1, 1, 1, 1, 1, 1)
+
 
 def test_z0_syndrome():
     error = Pauli("IIIIIIZ")
-    assert syndrome(error) == (1,1,1,0,0,0)
-    
-   
- 
+    assert syndrome(error) == (1, 1, 1, 0, 0, 0)
+
+
 def test_weight_one_errors_have_distinct_nonzero_syndromes():
     all_syndromes = []
 
@@ -81,3 +93,159 @@ def test_weight_one_errors_have_distinct_nonzero_syndromes():
 
     assert len(set(all_syndromes)) == len(all_syndromes)
     assert zero_syndrome not in all_syndromes
+
+
+def test_measure_stabilizer_plus_one_eigenstate():
+    data = QuantumRegister(7, "data")
+    ancilla = QuantumRegister(1, "anc")
+    syndrome_bit = ClassicalRegister(1, "syndrome")
+
+    qc = QuantumCircuit(data, ancilla, syndrome_bit)
+
+    for i in range(7):
+        qc.h(data[i])
+
+    measure_stabilizer(
+        qc,
+        data,
+        ancilla,
+        syndrome_bit,
+        Stabilizers[0],
+        0,
+    )
+
+    simulator = AerSimulator()
+    result = simulator.run(qc, shots=100).result()
+    counts = result.get_counts()
+
+    assert counts == {"0": 100}
+
+
+def test_measure_stabilizer_minus_one_eigenstate():
+    data = QuantumRegister(7, "data")
+    ancilla = QuantumRegister(1, "anc")
+    syndrome_bit = ClassicalRegister(1, "syndrome")
+
+    qc = QuantumCircuit(data, ancilla, syndrome_bit)
+
+    for i in range(7):
+        qc.h(data[i])
+
+    qc.z(data[0])
+
+    measure_stabilizer(
+        qc,
+        data,
+        ancilla,
+        syndrome_bit,
+        Stabilizers[0],
+        0,
+    )
+
+    simulator = AerSimulator()
+    result = simulator.run(qc, shots=100).result()
+    counts = result.get_counts()
+
+    assert counts == {"1": 100}
+
+
+def test_measure_z_stabilizer_plus_one_eigenstate():
+    data = QuantumRegister(7, "data")
+    ancilla = QuantumRegister(1, "anc")
+    syndrome_bit = ClassicalRegister(1, "syndrome")
+
+    qc = QuantumCircuit(data, ancilla, syndrome_bit)
+
+    measure_stabilizer(
+        qc,
+        data,
+        ancilla,
+        syndrome_bit,
+        Stabilizers[3],
+        0,
+    )
+
+    simulator = AerSimulator()
+    result = simulator.run(qc, shots=100).result()
+    counts = result.get_counts()
+
+    assert counts == {"0": 100}
+
+
+def test_append_syndrome_measurement():
+    data = QuantumRegister(7, "data")
+    ancilla = QuantumRegister(6, "anc")
+    syndrome_bits = ClassicalRegister(6, "syndrome")
+
+    qc = QuantumCircuit(data, ancilla, syndrome_bits)
+
+    append_syndrome_measurement(
+        qc,
+        data,
+        ancilla,
+        syndrome_bits,
+    )
+
+    assert qc.count_ops()["measure"] == 6
+
+    
+@pytest.mark.parametrize(
+    "pauli_type, qubit_index",
+    list(product(["X", "Y", "Z"], range(7))),
+)
+def test_weight_one_circuit_syndrome_matches_algebraic_syndrome(
+    pauli_type,
+    qubit_index,
+):
+    data = QuantumRegister(7, "data")
+    ancilla = QuantumRegister(6, "anc")
+    syndrome_bits = ClassicalRegister(6, "syndrome")
+
+    qc = QuantumCircuit(data, ancilla, syndrome_bits)
+
+    logical_zero_stabilizers = [
+        stabilizer.to_label() for stabilizer in Stabilizers
+    ] + ["ZZZZZZZ"]
+
+    logical_zero_circuit = synth_circuit_from_stabilizers(
+        logical_zero_stabilizers
+    )
+
+    qc.compose(
+        logical_zero_circuit,
+        qubits=data,
+        inplace=True,
+    )
+
+    error = Pauli(
+        "I" * (6 - qubit_index)
+        + pauli_type
+        + "I" * qubit_index
+    )
+
+    if pauli_type == "X":
+        qc.x(data[qubit_index])
+    elif pauli_type == "Y":
+        qc.y(data[qubit_index])
+    elif pauli_type == "Z":
+        qc.z(data[qubit_index])
+
+    append_syndrome_measurement(
+        qc,
+        data,
+        ancilla,
+        syndrome_bits,
+    )
+
+    simulator = AerSimulator()
+    result = simulator.run(qc, shots=100).result()
+    counts = result.get_counts()
+
+    # Verifies determinism explicitly for our idealized noiseless circuit
+    assert len(counts) == 1
+    
+    bitstring = next(iter(counts))
+    bitstring = bitstring[::-1]
+    measured_syndrome = tuple(int(bit) for bit in bitstring)
+
+    assert measured_syndrome == syndrome(error)
