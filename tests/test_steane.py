@@ -1,6 +1,6 @@
-import pytest
 from itertools import product
 
+import pytest
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 from qiskit.quantum_info import Pauli
 from qiskit.synthesis import synth_circuit_from_stabilizers
@@ -188,7 +188,7 @@ def test_append_syndrome_measurement():
 
     assert qc.count_ops()["measure"] == 6
 
-    
+
 @pytest.mark.parametrize(
     "pauli_type, qubit_index",
     list(product(["X", "Y", "Z"], range(7))),
@@ -203,13 +203,11 @@ def test_weight_one_circuit_syndrome_matches_algebraic_syndrome(
 
     qc = QuantumCircuit(data, ancilla, syndrome_bits)
 
-    logical_zero_stabilizers = [
-        stabilizer.to_label() for stabilizer in Stabilizers
-    ] + ["ZZZZZZZ"]
+    logical_zero_stabilizers = [stabilizer.to_label() for stabilizer in Stabilizers] + [
+        "ZZZZZZZ"
+    ]
 
-    logical_zero_circuit = synth_circuit_from_stabilizers(
-        logical_zero_stabilizers
-    )
+    logical_zero_circuit = synth_circuit_from_stabilizers(logical_zero_stabilizers)
 
     qc.compose(
         logical_zero_circuit,
@@ -217,11 +215,7 @@ def test_weight_one_circuit_syndrome_matches_algebraic_syndrome(
         inplace=True,
     )
 
-    error = Pauli(
-        "I" * (6 - qubit_index)
-        + pauli_type
-        + "I" * qubit_index
-    )
+    error = Pauli("I" * (6 - qubit_index) + pauli_type + "I" * qubit_index)
 
     if pauli_type == "X":
         qc.x(data[qubit_index])
@@ -243,7 +237,7 @@ def test_weight_one_circuit_syndrome_matches_algebraic_syndrome(
 
     # Verifies determinism explicitly for our idealized noiseless circuit
     assert len(counts) == 1
-    
+
     bitstring = next(iter(counts))
     bitstring = bitstring[::-1]
     measured_syndrome = tuple(int(bit) for bit in bitstring)

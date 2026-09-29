@@ -10,6 +10,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "jupyterlab>=4.6.4",
+    "matplotlib>=3.11.2",
+    "pylatexenc>=2.11",
     "pytest>=9.1.1",
     "ruff>=0.16.8",
 ]
