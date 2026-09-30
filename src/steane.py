@@ -1,3 +1,5 @@
+from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
+from qiskit.circuit import AncillaRegister
 from qiskit.quantum_info import Pauli
 
 # define our stabilizer generators for the Steane [[7,1,3]] code
@@ -23,13 +25,22 @@ def syndrome(error: Pauli) -> tuple[int, int, int, int, int, int]:
 
 
 def measure_stabilizer(
-    qc,
-    data,
-    ancilla,
-    syndrome_bits,
-    stabilizer,
-    index,
-):
+    qc: QuantumCircuit,
+    data: QuantumRegister,
+    ancilla: AncillaRegister,
+    syndrome_bits: ClassicalRegister,
+    stabilizer: Pauli,
+    index: int,
+) -> None:
+    """
+    Append an ancilla-based measurement of one Steane stabilizer.
+
+    The circuit is modified in place. The ancilla and classical bit at
+    `index` store the measurement associated with the supplied stabilizer.
+
+    Assumes the stabilizer contains only I, X, and Z factors and uses
+    Qiskit's convention that qubit 0 is the rightmost Pauli-string entry.
+    """
     qc.h(ancilla[index])
 
     label = stabilizer.to_label()
@@ -45,7 +56,19 @@ def measure_stabilizer(
     qc.measure(ancilla[index], syndrome_bits[index])
 
 
-def append_syndrome_measurement(qc, data, ancilla, syndrome_bits):
+def append_syndrome_measurement(
+    qc: QuantumCircuit,
+    data: QuantumRegister,
+    ancilla: AncillaRegister,
+    syndrome_bits: ClassicalRegister,
+) -> None:
+    """
+    Append measurements of all six Steane stabilizer generators.
+
+    The circuit is modified in place. The implementation requires a
+    seven-qubit data register, six ancilla qubits, and six classical
+    syndrome bits.
+    """
     for index, stabilizer in enumerate(Stabilizers):
         measure_stabilizer(
             qc,
