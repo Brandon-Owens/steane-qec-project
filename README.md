@@ -20,9 +20,18 @@ representation of Pauli operators and stabilizers.
 
 ## Current Status
 
-The first stage of the project is complete. The repository currently includes the Steane stabilizer generators, algebraic syndrome computation, ancilla-based measurement of individual stabilizers, full six-bit syndrome extraction, preparation of the logical state $|0_L\rangle$, and verification that the circuit-level syndrome agrees with the algebraic syndrome for all $21$ nonidentity weight-one Pauli errors.
+The first two stages of the project are complete. The first stage developed
+the Steane stabilizer generators, algebraic syndrome computation, and
+ancilla-based syndrome extraction, with verification for all $21$ nonidentity
+weight-one Pauli errors.
 
-The second stage, currently in progress, reinterprets the stabilizer-measurement circuit as one-bit quantum phase estimation.
+The second stage reinterpreted stabilizer measurement as one-bit quantum phase
+estimation. An independent QPE-based syndrome-extraction circuit was shown to
+reproduce the algebraically computed syndrome for all $21$ weight-one Pauli
+errors.
+
+The next stage will introduce the binary symplectic representation of Pauli
+operators and stabilizers.
 
 ## Setup and Reproducibility
 
@@ -79,6 +88,10 @@ The automated test suite checks both the algebraic and circuit-level components 
 - the full six-bit syndrome obtained from circuit simulation agrees with the algebraic syndrome for every weight-one Pauli error.
 
 Together, these tests provide an automated consistency check between the stabilizer algebra and the corresponding Qiskit circuits.
+
+The QPE notebook provides an additional independent computational validation:
+its QPE-based syndrome extraction agrees with the algebraic syndrome for all
+$21$ weight-one Pauli errors.
 
 ## Conventions
 
