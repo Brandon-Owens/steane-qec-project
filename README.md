@@ -77,13 +77,29 @@ Together, these tests provide an automated consistency check between the stabili
 
 The QPE notebook provides an additional independent computational validation: its QPE-based syndrome extraction agrees with the algebraic syndrome for all $21$ weight-one Pauli errors.
 
-The binary symplectic notebook provides a further algebraic cross-check. It verifies that the Pauli commutation relations underlying the Steane syndromes are reproduced by the binary symplectic formula
+The binary symplectic notebook provides a further algebraic cross-check. Writing
 
 $$
-s(E)=H\Lambda v([E])^T
+v([E])=(\mathbf{x}\mid\mathbf{z})\in\mathbb{F}_2^{2n}
 $$
 
-for all $21$ weight-one Pauli errors.
+for the binary symplectic representation of a Pauli error modulo phase, and defining
+
+$$
+\Lambda=
+\begin{pmatrix}
+0 & I_n \\
+I_n & 0 \\
+\end{pmatrix},
+$$
+
+the syndrome is computed as
+
+$$
+s(E)=H\Lambda v([E])^T.
+$$
+
+For all $21$ weight-one Pauli errors, this binary symplectic syndrome calculation agrees with the syndrome obtained directly from Pauli commutation relations.
 
 ## Conventions
 
@@ -111,6 +127,7 @@ and therefore acts nontrivially on data qubits $0,1,2,3$.
 
 This left-to-right Qiskit ordering is used consistently throughout all project notebooks. In particular, the binary symplectic coordinates follow the same displayed qubit order as the Qiskit Pauli strings. Modulo phase, a Pauli operator is represented by
 
+$$
 (x\_{n-1},\ldots,x_1,x_0
 \mid
 z\_{n-1},\ldots,z_1,z_0)
@@ -142,6 +159,7 @@ $$
 
 has binary symplectic representation
 
+$$
 (0,0,0,1,1,1,1
 \mid
 0,0,0,0,0,0,0).
