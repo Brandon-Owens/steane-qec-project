@@ -106,7 +106,7 @@ For all $21$ weight-one Pauli errors, this binary symplectic syndrome calculatio
 Qiskit represents an $n$-qubit Pauli string with qubit $0$ at the rightmost position. Accordingly, throughout this project an $n$-qubit Pauli operator is written as
 
 $$
-P=i^\ell P\_{n-1}\otimes\cdots\otimes P_1\otimes P_0,
+P=i^\ell P_{n-1}\otimes\cdots\otimes P_1\otimes P_0,
 $$
 
 where each $P_j\in{I,X,Y,Z}$ acts on qubit $j$.
@@ -128,10 +128,10 @@ and therefore acts nontrivially on data qubits $0,1,2,3$.
 This left-to-right Qiskit ordering is used consistently throughout all project notebooks. In particular, the binary symplectic coordinates follow the same displayed qubit order as the Qiskit Pauli strings. Modulo phase, a Pauli operator is represented by
 
 $$
-(x\_{n-1},\ldots,x_1,x_0
+(x_{n-1},\ldots,x_1,x_0
 \mid
-z\_{n-1},\ldots,z_1,z_0)
-\in\mathbb{F}\_2^{2n},
+z_{n-1},\ldots,z_1,z_0)
+\in\mathbb{F}_2^{2n},
 $$
 
 where the pair $(x_j,z_j)$ specifies the Pauli acting on qubit $j$ according to
@@ -146,7 +146,7 @@ $$
 Thus the displayed binary coordinates are ordered as
 
 $$
-q\_{n-1},\ldots,q_1,q_0,
+q_{n-1},\ldots,q_1,q_0,
 $$
 
 so that their order agrees directly with the characters of a Qiskit Pauli label.
