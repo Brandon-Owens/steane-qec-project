@@ -13,7 +13,7 @@ Stabilizers = [
 ]
 
 
-def syndrome(error: Pauli) -> tuple[int, int, int, int, int, int]:
+def syndrome(error: Pauli) -> tuple[int, ...]:
     """
     Compute the syndrome of a Pauli error with respect to the six
     Steane stabilizer generators.
@@ -41,9 +41,12 @@ def measure_stabilizer(
     Assumes the stabilizer contains only I, X, and Z factors and uses
     Qiskit's convention that qubit 0 is the rightmost Pauli-string entry.
     """
-    qc.h(ancilla[index])
-
     label = stabilizer.to_label()
+
+    if any(pauli not in "IXZ" for pauli in label):
+        raise ValueError("Stabilizer must contain only I, X, and Z factors.")
+
+    qc.h(ancilla[index])
 
     # Qiskit Pauli labels place qubit 0 at the rightmost character.
     for qubit_index, pauli in enumerate(reversed(label)):
