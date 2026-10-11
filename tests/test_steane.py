@@ -172,6 +172,31 @@ def test_measure_z_stabilizer_plus_one_eigenstate():
     assert counts == {"0": 100}
 
 
+def test_measure_z_stabilizer_minus_one_eigenstate():
+    data = QuantumRegister(7, "data")
+    ancilla = QuantumRegister(1, "anc")
+    syndrome_bit = ClassicalRegister(1, "syndrome")
+
+    qc = QuantumCircuit(data, ancilla, syndrome_bit)
+
+    qc.x(data[0])
+
+    measure_stabilizer(
+        qc,
+        data,
+        ancilla,
+        syndrome_bit,
+        Stabilizers[3],
+        0,
+    )
+
+    simulator = AerSimulator()
+    result = simulator.run(qc, shots=100).result()
+    counts = result.get_counts()
+
+    assert counts == {"1": 100}
+
+
 def test_append_syndrome_measurement():
     data = QuantumRegister(7, "data")
     ancilla = QuantumRegister(6, "anc")
