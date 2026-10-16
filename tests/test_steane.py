@@ -1,5 +1,6 @@
 from itertools import product
 
+import numpy as np
 import pytest
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 from qiskit.quantum_info import Pauli
@@ -9,14 +10,16 @@ from qiskit_aer import AerSimulator
 from src.steane import (
     Stabilizers,
     append_syndrome_measurement,
+    binary_syndrome,
     measure_stabilizer,
+    pauli_label_to_binary,
+    single_qubit_pauli_label,
     syndrome,
 )
 
 
-# helper function which returns the operator S1^a_1 S2^a_2...S6^a_6 when given (a_1, ..., a_6) for a_i in {0,1}
 def stabilizer_product(exponents):
-    # initialize the composite operator to the identity
+    """Return the product S_1**a_1 ... S_6**a_6 for binary exponents."""
     result = Pauli("IIIIIII")
 
     for exponent, stabilizer in zip(exponents, Stabilizers):
@@ -28,19 +31,16 @@ def stabilizer_product(exponents):
     return result
 
 
-# tests to make sure that each distinct pair of stabilizer generators commutes
 def test_stabilizers_commute():
     for i, s_i in enumerate(Stabilizers):
         for s_j in Stabilizers[i + 1 :]:
             assert s_i.commutes(s_j)
 
 
-# this function tests to ensure that no non-trivial product of stabilizers gives the identity operator (i.e. that our stabilizers are independent over F_2)
 def test_stabilizers_independent():
     identity = Pauli("IIIIIII")
 
-    # loops through all non-zero tuples in F_2^6 and checks that the product of stabilizers corresponding to that tuple is not the identity operator in the 7-qubit Pauli group.
-    # repeat is a keyword for the product function from itertools that tells the function to compute the Cartesian product of [0,1] with itself repeat = len(Stabilizers) = 6 times.
+    # no nonempty subset of generators should multiply to I.
     for exponents in product([0, 1], repeat=len(Stabilizers)):
         if exponents != (0, 0, 0, 0, 0, 0):
             assert stabilizer_product(exponents) != identity
@@ -52,56 +52,43 @@ def test_minus_identity_not_in_stabilizer():
     minus_identity = Pauli("-IIIIIII")
 
     for exponents in product([0, 1], repeat=len(Stabilizers)):
-        if exponents != (0, 0, 0, 0, 0, 0):
-            assert stabilizer_product(exponents) != minus_identity
+        assert stabilizer_product(exponents) != minus_identity
 
 
-# this series of errors tests four simple cases to ensure that our syndrome function works properly
-def test_identity_has_zero_syndrome():
-    error = Pauli("IIIIIII")
-    assert syndrome(error) == (0, 0, 0, 0, 0, 0)
-
-
-def test_x0_syndrome():
-    error = Pauli("IIIIIIX")
-    assert syndrome(error) == (0, 0, 0, 1, 1, 1)
-
-
-def test_y0_syndrome():
-    error = Pauli("IIIIIIY")
-    assert syndrome(error) == (1, 1, 1, 1, 1, 1)
-
-
-def test_z0_syndrome():
-    error = Pauli("IIIIIIZ")
-    assert syndrome(error) == (1, 1, 1, 0, 0, 0)
+# test binary syndrome function and composite function syndrome(Pauli(...))
+# agree with computed syndromes for I, X_0, Y_0, and Z_0
+@pytest.mark.parametrize(
+    "label, expected",
+    [
+        ("IIIIIII", (0, 0, 0, 0, 0, 0)),
+        ("IIIIIIX", (0, 0, 0, 1, 1, 1)),
+        ("IIIIIIY", (1, 1, 1, 1, 1, 1)),
+        ("IIIIIIZ", (1, 1, 1, 0, 0, 0)),
+    ],
+)
+def test_known_syndromes(label, expected):
+    assert syndrome(Pauli(label)) == expected
+    assert binary_syndrome(label) == expected
 
 
 def test_weight_one_errors_have_distinct_nonzero_syndromes():
-    all_syndromes = []
+    all_syndromes = [
+        syndrome(Pauli(single_qubit_pauli_label(pauli_type, qubit_index)))
+        for pauli_type, qubit_index in product(["X", "Y", "Z"], range(7))
+    ]
 
-    for i in range(7):
-        x_error = Pauli("I" * (6 - i) + "X" + "I" * i)
-        y_error = Pauli("I" * (6 - i) + "Y" + "I" * i)
-        z_error = Pauli("I" * (6 - i) + "Z" + "I" * i)
-
-        all_syndromes.append(syndrome(x_error))
-        all_syndromes.append(syndrome(y_error))
-        all_syndromes.append(syndrome(z_error))
-
-    zero_syndrome = (0, 0, 0, 0, 0, 0)
-
-    assert len(set(all_syndromes)) == len(all_syndromes)
-    assert zero_syndrome not in all_syndromes
+    assert len(set(all_syndromes)) == 21
+    assert (0, 0, 0, 0, 0, 0) not in all_syndromes
 
 
-def test_measure_stabilizer_plus_one_eigenstate():
+def test_measure_x_stabilizer_plus_one_eigenstate():
     data = QuantumRegister(7, "data")
     ancilla = QuantumRegister(1, "anc")
     syndrome_bit = ClassicalRegister(1, "syndrome")
 
     qc = QuantumCircuit(data, ancilla, syndrome_bit)
 
+    # |+>^7 is a +1 eigenstate of S_1
     for i in range(7):
         qc.h(data[i])
 
@@ -121,16 +108,18 @@ def test_measure_stabilizer_plus_one_eigenstate():
     assert counts == {"0": 100}
 
 
-def test_measure_stabilizer_minus_one_eigenstate():
+def test_measure_x_stabilizer_minus_one_eigenstate():
     data = QuantumRegister(7, "data")
     ancilla = QuantumRegister(1, "anc")
     syndrome_bit = ClassicalRegister(1, "syndrome")
 
     qc = QuantumCircuit(data, ancilla, syndrome_bit)
 
+    # |+>^7 is a +1 eigenstate of S_1
     for i in range(7):
         qc.h(data[i])
 
+    # Z_0 anticommutes with S_1, changing its eigenvalue to -1
     qc.z(data[0])
 
     measure_stabilizer(
@@ -156,6 +145,8 @@ def test_measure_z_stabilizer_plus_one_eigenstate():
 
     qc = QuantumCircuit(data, ancilla, syndrome_bit)
 
+    # The default state |0>^7 is a +1 eigenstate of S_4.
+
     measure_stabilizer(
         qc,
         data,
@@ -179,6 +170,8 @@ def test_measure_z_stabilizer_minus_one_eigenstate():
 
     qc = QuantumCircuit(data, ancilla, syndrome_bit)
 
+    # The default state |0>^7 is a +1 eigenstate of S_4.
+    # X_0 anticommutes with S_4, changing its eigenvalue to -1.
     qc.x(data[0])
 
     measure_stabilizer(
@@ -214,6 +207,12 @@ def test_append_syndrome_measurement():
     assert qc.count_ops()["measure"] == 6
 
 
+@pytest.fixture(scope="module")
+def logical_zero_circuit():
+    stabilizer_labels = [stabilizer.to_label() for stabilizer in Stabilizers]
+    return synth_circuit_from_stabilizers(stabilizer_labels + ["ZZZZZZZ"])
+
+
 @pytest.mark.parametrize(
     "pauli_type, qubit_index",
     list(product(["X", "Y", "Z"], range(7))),
@@ -221,6 +220,7 @@ def test_append_syndrome_measurement():
 def test_weight_one_circuit_syndrome_matches_algebraic_syndrome(
     pauli_type,
     qubit_index,
+    logical_zero_circuit,
 ):
     data = QuantumRegister(7, "data")
     ancilla = QuantumRegister(6, "anc")
@@ -228,19 +228,13 @@ def test_weight_one_circuit_syndrome_matches_algebraic_syndrome(
 
     qc = QuantumCircuit(data, ancilla, syndrome_bits)
 
-    logical_zero_stabilizers = [stabilizer.to_label() for stabilizer in Stabilizers] + [
-        "ZZZZZZZ"
-    ]
-
-    logical_zero_circuit = synth_circuit_from_stabilizers(logical_zero_stabilizers)
-
     qc.compose(
         logical_zero_circuit,
         qubits=data,
         inplace=True,
     )
 
-    error = Pauli("I" * (6 - qubit_index) + pauli_type + "I" * qubit_index)
+    error = Pauli(single_qubit_pauli_label(pauli_type, qubit_index))
 
     if pauli_type == "X":
         qc.x(data[qubit_index])
@@ -260,11 +254,61 @@ def test_weight_one_circuit_syndrome_matches_algebraic_syndrome(
     result = simulator.run(qc, shots=100).result()
     counts = result.get_counts()
 
-    # Verifies determinism explicitly for our idealized noiseless circuit
+    # verifies determinism explicitly for our idealized noiseless circuit
     assert len(counts) == 1
 
     bitstring = next(iter(counts))
-    bitstring = bitstring[::-1]
-    measured_syndrome = tuple(int(bit) for bit in bitstring)
+
+    # reverse qiskit's displayed bit order to recover (s_1, ..., s_6)
+    measured_syndrome = tuple(int(bit) for bit in bitstring[::-1])
 
     assert measured_syndrome == syndrome(error)
+
+
+def test_pauli_label_to_binary_coordinates():
+    np.testing.assert_array_equal(
+        pauli_label_to_binary("XYZ"),
+        np.array([1, 1, 0, 0, 1, 1], dtype=np.uint8),
+    )
+
+
+@pytest.mark.parametrize("label", ["", "A", "-X", "iX"])
+def test_pauli_label_to_binary_rejects_invalid_labels(label):
+    with pytest.raises(ValueError):
+        pauli_label_to_binary(label)
+
+
+def test_single_qubit_pauli_label_ordering():
+    assert single_qubit_pauli_label("X", 0) == "IIIIIIX"
+    assert single_qubit_pauli_label("Z", 6) == "ZIIIIII"
+    assert single_qubit_pauli_label("Y", 1, n=3) == "IYI"
+
+
+@pytest.mark.parametrize("pauli_type", ["X", "Y", "Z"])
+@pytest.mark.parametrize("qubit_index", range(7))
+def test_binary_syndrome_matches_pauli_commutation(pauli_type, qubit_index):
+    # construct labels directly here to check the syndrome implementation
+    # independently of single_qubit_pauli_label
+    label = "I" * (6 - qubit_index) + pauli_type + "I" * qubit_index
+
+    assert binary_syndrome(label) == syndrome(Pauli(label))
+
+
+@pytest.mark.parametrize("label", ["X", "IIIIIIA"])
+def test_binary_syndrome_rejects_invalid_labels(label):
+    with pytest.raises(ValueError):
+        binary_syndrome(label)
+
+
+@pytest.mark.parametrize(
+    "pauli_type, qubit_index, n",
+    [
+        ("I", 0, 7),
+        ("X", 0, 0),
+        ("X", -1, 7),
+        ("X", 7, 7),
+    ],
+)
+def test_single_qubit_pauli_label_rejects_invalid_inputs(pauli_type, qubit_index, n):
+    with pytest.raises(ValueError):
+        single_qubit_pauli_label(pauli_type, qubit_index, n=n)

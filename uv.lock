@@ -2173,6 +2173,7 @@ name = "steane-qec-project"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "numpy" },
     { name = "qiskit" },
     { name = "qiskit-aer" },
 ]
@@ -2188,6 +2189,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "numpy", specifier = ">=2.5.3" },
     { name = "qiskit", specifier = ">=2.5.2" },
     { name = "qiskit-aer", specifier = ">=0.17.2" },
 ]
