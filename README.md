@@ -4,7 +4,7 @@
 
 This project studies syndrome extraction for the Steane $[[7,1,3]]$ quantum error-correcting code through three complementary approaches: ancilla-based stabilizer measurements, one-bit quantum phase estimation (QPE), and binary symplectic linear algebra.
 
-The implementation verifies that circuit-based syndrome extraction agrees with algebraic syndrome calculations for all 21 single-qubit Pauli errors. The accompanying notebooks develop the connection between stabilizer measurement and one-bit QPE, then express the same Pauli commutation and syndrome structure through binary matrix operations over $\mathbb{F}\_2$.
+The implementation verifies that circuit-based syndrome extraction agrees with algebraic syndrome calculations for all 21 single-qubit Pauli errors. The accompanying notebooks develop the connection between stabilizer measurement and one-bit QPE, then express the same Pauli commutation and syndrome structure through binary matrix operations over $\mathbb{F}_2$.
 
 ## Project Structure
 
@@ -16,7 +16,7 @@ The project consists of three notebooks, intended to be read in order:
 
 Supporting files:
 
-- [`src/steane.py`](src/steane.py) — Stabilizer generators, algebraic syndrome computation, and measurement circuits.
+- [`src/steane.py`](src/steane.py) — Steane stabilizer generators, Pauli-label utilities, direct and binary symplectic syndrome computation, and stabilizer-measurement circuits.
 - [`tests/test_steane.py`](tests/test_steane.py) — Automated algebraic and circuit-level tests.
 - `pyproject.toml` and `uv.lock` — Project dependencies and reproducible environment.
 
@@ -45,9 +45,11 @@ uv run ruff format --check .
 
 The automated test suite checks both the algebraic and circuit-level components of the implementation. In particular, it verifies that:
 
-- the six chosen Steane stabilizer generators commute and form an independent generating set;
+- the six chosen Steane stabilizer generators commute, are independent, and generate a group excluding $-I$;
 - the $21$ weight-one Pauli errors have distinct, nonzero syndromes;
-- the ancilla-based circuits correctly distinguish the $+1$ and $-1$ eigenspaces of both $X$-type and $Z$-type stabilizer generators; and
+- binary symplectic syndrome computation agrees with direct Pauli commutation for every weight-one Pauli error;
+- Pauli-label utilities follow the stated coordinate conventions and reject invalid inputs;
+- the ancilla-based circuits correctly distinguish the $+1$ and $-1$ eigenstates tested for both $X$-type and $Z$-type generators; and
 - the full six-bit syndrome obtained from circuit simulation agrees with the algebraic syndrome for every weight-one Pauli error.
 
 The QPE and binary symplectic notebooks provide additional computational checks. The QPE notebook independently constructs one-bit QPE-based syndrome-extraction circuits, while the binary symplectic notebook computes syndromes through binary matrix operations over $\mathbb{F}_2$. Both approaches reproduce the algebraic syndromes for all $21$ weight-one Pauli errors.
@@ -60,6 +62,6 @@ Syndromes are written in stabilizer-generator order, $(s_1,\ldots,s_6)$, with $s
 
 ## Scope and Limitations
 
-The implementation is specific to the Steane $[[7,1,3]]$ code and accepts seven-qubit Qiskit Pauli objects for algebraic syndrome calculations. Full circuit-based syndrome extraction uses seven data qubits, six ancilla qubits, and six classical syndrome bits.
+The syndrome and measurement routines target the Steane $[[7,1,3]]$ code. The function `syndrome` accepts a seven-qubit Qiskit `Pauli` object, while `binary_syndrome` accepts a seven-character unsigned Pauli label. Full circuit-based syndrome extraction uses seven data qubits, six ancilla qubits, and six classical syndrome bits.
 
 Circuit simulations assume ideal, noiseless operations. The project implements syndrome extraction but not error recovery or decoding. Logical state preparation uses Qiskit's built-in `synth_circuit_from_stabilizers` routine rather than a custom encoding circuit.
